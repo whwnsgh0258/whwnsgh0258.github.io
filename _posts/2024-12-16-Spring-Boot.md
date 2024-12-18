@@ -2,7 +2,7 @@
 title: Spring VS Spring Boot
 description: Spring Boot
 author: 조준호
-date: 2024-12-15 11:33:00 +0800
+date: 2024-12-16 11:33:00 +0800
 categories: [ java, Spring Boot ]
 tags: [ java, cs ]
 pin: false
