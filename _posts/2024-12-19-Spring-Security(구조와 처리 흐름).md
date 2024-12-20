@@ -7,10 +7,9 @@ categories: [ java, Spring, SpringSecurity ]
 tags: [ java, cs, Spring, SpringBoot,SpringSecurity ]
 pin: false
 ---
+[SpringSecurity - 1](https://whwnsgh0258.github.io/posts/Spring-Security/)
 
 ## 1. SpringSecurity 구조와 처리 흐름
-
-[SpringSecurity - 1](https://whwnsgh0258.github.io/posts/Spring-Security/)
 
 ### SpringSecurity 구조
 
@@ -224,5 +223,14 @@ pin: false
   }
   ```
 
-### SringSecurity 처리 흐름
+### SringSecurity 인증 처리 흐름
 ![SpringSecurity 처리 흐름 머메이드.png](/assets/img/postImg/12:19/SpringSecurity%20처리%20흐름%20머메이드.png)
+
+1. **Client**: 사용자 요청이 들어옵니다.
+2. **SecurityFilterChain**: 사용자의 요청을 SecurityFilterChain을 통해 들어오게 됩니다.
+3. **AuthenticationFilter**: 요청을 AuthenticationFilter가 가로채고, 인증을 처리 합니다. 인증되지 않은 사용자가 요청을 보내면 인증 처리를 위해 AuthenticationManager로 인증 객체를 전달 합니다.
+4. **AuthenticationManager**: 인증을 담당하는 AuthenticationManager는 여러 AuthenticationProvider 중 적절한 곳에 인증을 위임합니다.
+5. **AuthenticationProvider**: AuthenticationProvider는 실제 인증을 처리 합니다. 주로 UserDetaillsService를 호출해 사용자의 정보를 로드 합니다.
+6. **UserDetailsService**: UserDetailsService는 사용자 이름을 기반으로 사용자 정보를 로드하고, UserDetails 객체를 반환합니다.
+7. **SecurityContext**: 인증이 완료되면 Authentication 객체는 SecurityContext에 저장되어, 이후의 요청에서 인증된 사용자의 정보를 확인할 수 있게 됩니다.
+8.	**HttpServletRequest**: 인증 완료된 사용자 정보가 담긴 SecurityContext는 요청을 처리한 후, HTTP Response로 사용자에게 반환됩니다.
