@@ -141,3 +141,179 @@ spring:
   4. 인증 실패 ->  `.failureHandler(authenticationFailureHandler())`로 실패 처리
   5. Remember-Me 활성화 → 설정된 키와 토큰 유효 기간으로 자동 로그인 지원.
   6. 로그아웃 → logoutUrl() 호출 시 세션과 쿠키 삭제 및 인증 정보 초기화.
+
+#### 4. Entity
+##### 4-1. Users
+```java
+
+@Getter
+@Entity
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Table(name = "users")
+public class User extends BaseEntity {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
+
+  @Column(name = "username", unique = true)
+  private String username;
+
+  @Column(name = "password")
+  private String password;
+
+  @Column(name = "nickname")
+  private String nickname;
+
+  public void updateUser(String password, String nickname) {
+    this.password = password;
+    this.nickname = nickname;
+  }
+}
+```
+
+1. **BaseEntity**: createdAt, updatedAt을 기록하는 엔티티
+2. **id**: 사용자 고유 식별 번호
+3. **username**: 사용자 인증에 필요한 아이디
+4. **password**: 사용자 비밀번호
+5. **nickname**: 사용자 닉네임
+
+#### 5. DTO
+##### 5-1. CreateRequestUser
+```java
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class CreateUserRequest {
+
+    // RFC 5322 이메일 정규식
+    @Pattern(regexp = "^[a-zA-Z0-9_!#$%&’*+/=?`{|}~^.-]+@[a-zA-Z0-9.-]+\\.[a-zA-z]{2,}$", message = "아이디는 이메일 형태로 입력해주세요.")
+    @NotBlank(message = "아이디는 빈칸을 입력할 수 없습니다.")
+    private String username;
+
+    // 비밀번호: 영문, 숫자, 특수문자를 포함하여 8~15자 작성
+    @Size(min = 8, max = 16, message = "비밀번호는 8자 이상 16자 이하여야 합니다.")
+    @Pattern(regexp = "^(?:(?=.*[a-zA-Z])(?=.*[0-9])|(?=.*[a-zA-Z])(?=.*[!@#$%^*+=-])|(?=.*[0-9])(?=.*[!@#$%^*+=-])).*$",
+            message = "비밀번호는 영문, 숫자, 특수문자 중 2가지 종류를 포함해야 합니다.")
+    @NotBlank(message = "비밀번호는 빈칸을 입력할 수 없습니다.")
+    private String password;
+
+    @NotBlank(message = "이름은 빈칸을 입력할 수 없습니다.")
+    private String nickname;
+
+    private Language language;
+    private Position position;
+
+    public User toEntity() {
+        return User.builder()
+                .username(username)
+                .password(password)
+                .nickname(nickname)
+                .language(language)
+                .position(position)
+                .build();
+    }
+}
+```
+##### 5-2. UserResponse
+```java
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+public class UserResponse {
+
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private Long id;
+    private String username;
+    private String password;
+    private String nickname;
+
+
+    private Language language;
+    private Level level;
+    private Position position;
+
+    public static UserResponse toDto(User user) {
+        return UserResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .password(user.getPassword())
+                .nickname(user.getNickname())
+                .language(user.getLanguage())
+                .level(user.getLevel())
+                .position(user.getPosition())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
+                .build();
+    }
+}
+```
+#### 6. Repository
+##### 6-1. UserRepository
+```java
+public interface UserRepository extends JpaRepository<User, Long> {
+  Optional<User> findByUsername(String username);
+}
+```
+1. **Optional<User> findByUsername(String username)**: username으로 검색하고 없으면 예외처리
+#### 7. Service
+##### 7-1. UserService
+```java
+@Service
+@RequiredArgsConstructor
+public class UserService {
+
+    private final UserRepository userRepository;
+    private final InterviewRepository interviewRepository;
+
+    // 회원 가입 메서드
+    @Transactional
+    public void createUser(CreateUserRequest createUserRequest) {
+        userRepository.save(createUserRequest.toEntity());
+    }
+
+    // username 으로 찾는 메서드
+    @Transactional(readOnly = true)
+    public UserResponse findByUsername(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException(
+                        "No user found with username:" + username));
+
+        return UserResponse.toDto(user);
+    }
+}
+```
+#### 8. Controller
+##### 8-1. UserController
+
+```java
+@Controller
+@RequiredArgsConstructor
+public class UserController {
+
+  private final PasswordEncoder passwordEncoder;
+  private final UserService userService;
+
+  // 로그인 폼
+  @GetMapping("/views/users/login")
+  public String userLoginForm() {
+    return "user/login";
+  }
+
+  // 회원가입 폼
+  @GetMapping("/views/users/signup")
+  public String userSignUpForm(Model model) {
+    model.addAttribute("createUserRequest", new CreateUserRequest());
+
+    return "user/signup";
+  }
+}
+```
+
