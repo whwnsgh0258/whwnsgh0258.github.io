@@ -2,7 +2,7 @@
 title: JWT 토큰 개념 및 구성요소
 description: JWT 토큰 개념 및 구성요소
 author: JoJunHo
-date: 2024-12-20 11:33:00 +0800
+date: 2024-12-21 11:33:00 +0800
 categories: [ java, Spring, SpringSecurity, JWT ]
 tags: [ java, Spring, SpringBoot,SpringSecurity, JWT ]
 pin: false
@@ -120,4 +120,22 @@ JWT 토큰을 사용하면 Stateless(상태 비유지)한 인증을 가능하게
     secretKey
   )
   ```
+  
+## 4. AccessToken VS RefreshToken
+
+### 4-1. AccessToken
+
+사용자에 대한 정보를 담고 있어서 서비스에 **접근(Access)** 할 수 있는 토큰을 의미 합니다. 
+
+- **특징**:
+  - 짧은 유효기간
+  - 서버에 보호된 리소스에 접근 할 때 사용
+
+### 4-1. RefreshToken
+
+AccessToken이 만료 되었을 때 서버에서 이를 확인하고 새로운 AccessToken을 발급 해주기 위한 토큰 입니다.
+
+- **특징**
+  - 긴 유효기간
+  - 서버에서만 사용되는 토큰
   
