@@ -46,7 +46,7 @@ social:
 
 # Site Verification Settings
 webmaster_verifications:
-  google: # fill in your Google verification code
+  google: google418085c21d8fc25c.html # fill in your Google verification code
   bing: # fill in your Bing verification code
   alexa: # fill in your Alexa verification code
   yandex: # fill in your Yandex verification code
@@ -216,6 +216,7 @@ exclude:
   - rollup.config.js
   - "package*.json"
 
+robots: true
 jekyll-archives:
   enabled: [categories, tags]
   layouts:
