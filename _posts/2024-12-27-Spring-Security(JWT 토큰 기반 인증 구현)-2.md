@@ -1,0 +1,416 @@
+---
+title: JWT 토큰 기반 인증 구현 - 2
+description: 동영상 재생기
+author: JoJunHo
+date: 2024-12-27 11:33:00 +0800
+categories: [ Coding Test, Programmers ]
+tags: [ Coding Test, Programmers ]
+lastmod: 2024-12-30
+sitemap:
+  changefreq: daily
+  priority: 1.0
+---
+
+> ### SpringSecurity
+> [SpringSecurity - 개념](https://whwnsgh0258.github.io/posts/Spring-Security/)  
+> [SpringSecurity - 구조 및 처리 흐름](https://whwnsgh0258.github.io/posts/Spring-Security(%EA%B5%AC%EC%A1%B0%EC%99%80-%EC%B2%98%EB%A6%AC-%ED%9D%90%EB%A6%84)/)  
+> [SpringSecurity - FormLogin](https://whwnsgh0258.github.io/posts/Spring-Security(FormLogin-%EC%9D%B8%EC%A6%9D-%EB%B0%8F-%EA%B6%8C%ED%95%9C-%EB%B6%80%EC%97%AC)/)  
+> [SpringSecurity - JWT](https://whwnsgh0258.github.io/posts/Spring-Security(JWT-%ED%86%A0%ED%81%B0-%EA%B0%9C%EB%85%90-%EB%B0%8F-%EA%B5%AC%EC%84%B1%EC%9A%94%EC%86%8C)/)
+> [SpringSecurity - JWT 토큰 기반 인증](https://whwnsgh0258.github.io/posts/Spring-Security(JWT-%ED%86%A0%ED%81%B0-%EA%B8%B0%EB%B0%98-%EC%9D%B8%EC%A6%9D-%EA%B5%AC%ED%98%84)/)
+
+안녕하세요. 백엔드 개발자가 되기위해 공부하고있는 조준호입니다.  
+이전 포스팅 에서는 JWT 토큰의 개념과 구성요소 그리고 엑세스 토큰과 리프레시 토큰에 대해 알아보았습니다.  
+이번 포스팅 에서는 이전 포스팅에 이어서 JWT 기반의 인증 로직을 구현해 보겠습니다.
+
+*
+
+*[이전 포스팅](https://whwnsgh0258.github.io/posts/Spring-Security(JWT-%ED%86%A0%ED%81%B0-%EA%B8%B0%EB%B0%98-%EC%9D%B8%EC%A6%9D-%EA%B5%AC%ED%98%84)/)
+**
+
+## JWT 토큰 기반 인증
+
+### 1. SpringSecurity 설정
+
+이전 포스팅에서는 Security 설정 중 **`JwtAuthenticationFilter`** 와 **`SecurityConfig`** 클래스를 구현 했습니다.  
+이번 포스팅 에서는 **`JwtProvider`** 클래스와 **`CustomUserDetails`** 그리고 **`CustomUserDetailsService`** 를 구현할
+예정 입니다.
+
+#### JwtProvider
+
+##### 필드
+
+```java
+private static final String AUTHORITIES_KEY = "auth";
+private static final String ISSUER = "table-link.com";
+private final HttpServletResponse response;
+private final UserRepository userRepository;
+private Key key;
+@Value("${jwt.secret}")
+private String secret; 
+@Value("${jwt.expiration-time}")
+private Long expirationTime;
+@Getter 
+@Value("${jwt.refresh-expiration-time}")
+private Long refreshExpirationTime;
+```
+
+##### secretKey 복호화 및 HMAC-SHA 알고리즘 키 생성
+```java
+@PostConstruct
+public void afterPropertiesSet() {
+  byte[] keyByte = Decoders.BASE64.decode(secret);
+  this.key = Keys.hmacShaKeyFor(keyByte);
+}      
+```
+
+**[내부 로직 설명]**
+
+- **`@PostConstruct`**: 해당 클래스의 모든 의존성 주입이 완료된 직후 호출되게 하는 어노테이션 입니다.
+- **Base64 디코딩**
+  - **`secret`**: JWT의 서명을 하기 위한 비밀키 입니다. 주로 Base64로 인코딩된 문자열 형태로 다룹니다.
+  - **`Decoders.BASE64.decode(secret)`**: Base64로 인코딩된 문자열(secret)을 디코딩하여 바이트 배열로 변환합니다.
+- **HMAC SHA 키 생성**
+  - **`Keys.hmacShaKeyFor(byte[] keyByte);`**: JWT 라이브러리인 JJWT에서 제공하는 유틸리티 메서드로, HMAC-SHA 알고리즘에 사용할
+    키를 생성합니다.
+
+##### 토큰 생성 메서드
+```java
+public JwtTokenResponse generateTokens(Authentication authentication) {
+  String authorities = getAuthorities(authentication);
+
+  String accessToken = createToken(authentication.getName(), authorities, expirationTime);
+  String refreshToken = createToken(authentication.getName(), authorities, refreshExpirationTime);
+
+  setAccessTokenInCookie(accessToken);
+  setRefreshTokenInCookie(refreshToken);
+  return JwtTokenResponse.builder()
+      .accessToken(accessToken)
+      .refreshToken(refreshToken)
+      .build();
+}
+private String createToken(String subject, String authorities, Long expirationTime) {
+  long now = System.currentTimeMillis();
+  return Jwts.builder()
+        .setSubject(subject)
+        .setIssuer(ISSUER)
+        .claim(AUTHORITIES_KEY, authorities)
+        .setIssuedAt(new Date(now))
+        .setExpiration(new Date(now + expirationTime))
+        .signWith(key, SignatureAlgorithm.HS256)
+        .compact();
+}
+private String getAuthorities(Authentication authentication) {
+  return authentication.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(
+        Collectors.joining(","));
+}
+private void setAccessTokenInCookie(String accessToken) {
+  Cookie cookie = new Cookie("accessToken", accessToken);
+  cookie.setHttpOnly(true);
+  cookie.setMaxAge((int) (expirationTime / 1000));
+  cookie.setPath("/");
+  cookie.setSecure(false);
+  // 쿠키를 HTTP 응답에 추가
+  response.addHeader("Set-Cookie",
+      "accessToken=" + accessToken + "; HttpOnly; Max-Age=3600; Path=/; SameSite=Lax");
+}
+private void setRefreshTokenInCookie(String refreshToken) {
+  Cookie cookie = new Cookie("refreshToken", refreshToken);
+  cookie.setHttpOnly(true);
+  cookie.setMaxAge((int) (refreshExpirationTime / 1000));
+  cookie.setPath("/");
+  cookie.setSecure(false);
+  // 쿠키를 HTTP 응답에 추가
+  response.addHeader("Set-Cookie",
+      "accessToken=" + refreshToken + "; HttpOnly; Max-Age=3600; Path=/; SameSite=Lax");
+}
+```
+
+**[내부 로직 설명]**
+
+1. **`generateTokens`**: 외부에서 사용할 토큰 생성 메서드
+    ```java
+    public JwtTokenResponse generateTokens(Authentication authentication) {
+          
+      // 사용자 인증 정보에서 권한만 따로 추출
+      String authorities = getAuthorities(authentication);
+   
+      // accessToken 생성 매게변수에는 "인증 정보에서 추출한 사용자 이름, 사용자 권한, accessToken의 만료 일시"가 들어갑니다.
+      String accessToken = createToken(authentication.getName(), authorities, expirationTime);
+      // refreshToken 생성 매게변수에는 "인증 정보에서 추출한 사용자 이름, 사용자 권한, refreshToken의 만료 일시"가 들어갑니다.
+      String refreshToken = createToken(authentication.getName(), authorities, refreshExpirationTime);
+      // AccessToken 및 RefreshToken 쿠키 생성
+      setAccessTokenInCookie(accessToken);
+      setRefreshTokenInCookie(refreshToken);
+      return JwtTokenResponse.builder()
+          .accessToken(accessToken)
+          .refreshToken(refreshToken)
+          .build();
+      }
+    ```
+2. **`createToken`**: 외부에서 접근하지 못하도록 JWT 토큰을 생성하는 세부 로직을 **`private`** 으로 구현
+    ```java
+    private String createToken(String subject, String authorities, Long expirationTime) {
+      long now = System.currentTimeMillis();
+      return Jwts.builder()
+            // 사용자 이름(username)
+            .setSubject(subject)
+            // 토큰 발급자
+            .setIssuer(ISSUER)
+            // 권한 정보
+            .claim(AUTHORITIES_KEY, authorities)
+            // 토큰 생성 일시 
+            .setIssuedAt(new Date(now))
+            // 토큰 만료 일시
+            .setExpiration(new Date(now + expirationTime))
+            // 알고리즘(HMAC SHA 알고리즘)
+            .signWith(key, SignatureAlgorithm.HS256)
+            .compact();
+      }
+    ```
+3. **`getAuthorities`**: 외부에서 접근하지 못하도록 인증 정보에서 권한만 추출하는 세부 로직을 **`private`** 으로 구현
+    ```java
+    private String getAuthorities(Authentication authentication) {
+      return authentication.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(
+          Collectors.joining(","));
+    }
+    ```
+4. **`setAccessTokenInCookie`, `setRefreshTokenInCookie`**: AccessToken과 RefreshToken을 Cookie로 감싸서
+   보내주는 세부 로직을 **`private`** 으로 구현
+    ```java
+    private void setAccessTokenInCookie(String accessToken) {
+      // Key: "accessToken", Value: accessToken
+      Cookie cookie = new Cookie("accessToken", accessToken);
+      // HttpOnly를 true로 설정하여 브라우저의 JavaScript에서 쿠키에 접근하지 못하도록 제한합니다. 이를 통해 
+      cookie.setHttpOnly(true);
+      // 쿠키의 만료 일시 설정
+      cookie.setMaxAge((int) (expirationTime / 1000));
+      cookie.setPath("/");
+      // HTTPS 설정(배포 환경에서는 true로 해야하지만 개발 환경 이라서 일단 false로 설정 해둠)
+      cookie.setSecure(false);
+      // 쿠키를 HTTP 응답에 추가
+      response.addHeader("Set-Cookie",
+          "accessToken=" + accessToken + "; HttpOnly; Max-Age=3600; Path=/; SameSite=Lax");
+    }
+    ```
+  - **`Cookie cookie = new Cookie("accessToken", accessToken);`**: Key: "accessToken", Value:
+    accessToken
+  - **`cookie.setHttpOnly(true);`**: 브라우저의 JavaScript에서 쿠키에 접근하지 못하도록 제한합니다. 이를 통해 **XSS(Cross Site
+    Script)** 공격으로 부터 예방 합니다.
+  - **`cookie.setMaxAge((int) (expirationTime / 1000));`**: 쿠키의 수명을 설정 합니다. `setMaxAge`는 초 단위로 입력 받기
+    때문에 밀리초 단위인 `expirationTime`에 1000을 나눠서 변환 합니다.
+  - **`cookie.setPath("/");`**: 쿠키가 접근 가능한 경로 설정
+  - **`cookie.setSecure(false);`**: HTTPS 설정 여부
+  - **`response.addHeader("Set-Cookie", "accessToken=" + accessToken + "; HttpOnly; Max-Age=3600; Path=/; SameSite=Lax");`**: 응답 헤더에 쿠키 추가
+
+##### 토큰 검증 메서드
+
+```java
+public String resolveAccessToken(HttpServletRequest request) {
+  Cookie[] cookies = request.getCookies();
+  if (cookies != null) {
+    for (Cookie cookie : cookies) {
+      if ("accessToken".equals(cookie.getName())) {
+        return cookie.getValue();
+      }
+    }
+  }
+  return null;
+}
+public boolean validateToken(String token) {
+  try {
+    Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+    return true;
+  } catch (Exception e) {
+    log.error("Token validation failed: {}", e.getMessage());
+    return false;
+  }
+}
+```
+**[내부 로직 설명]**
+1. **`resolveAccessToken`**: **HTTP** 요청 쿠키에서 `accessToken`이라는 값을 찾아서 반환 합니다.(accessToken 재발급 요청 제외한 일반적인 요청을 받았을 때 사용됩니다.)
+    ```java
+    public String resolveAccessToken(HttpServletRequest request) {
+      Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+          for (Cookie cookie : cookies) {
+            if ("accessToken".equals(cookie.getName())) {
+            return cookie.getValue();
+            }
+          }
+        }
+      return null;
+    }
+    ```
+2. **`validateToken`**: 이 메서드는 JWT 토큰의 유효성을 확인합니다. 
+    ```java
+    public boolean validateToken(String token) {
+      try {
+        Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+        return true;
+      } catch (Exception e) {
+        log.error("Token validation failed: {}", e.getMessage());
+        return false;
+      }
+    }
+    ```
+##### JWT 토큰에서 사용자 정보를 추출하여 Authentication 객체를 생성하는 메서드
+```java
+public Authentication getAuthentication(String token) {
+  Claims claims = parseClaims(token);
+  if (claims.get(AUTHORITIES_KEY) == null) {
+    throw new IllegalArgumentException("권한 정보가 없는 토큰입니다.");
+  }
+  List<GrantedAuthority> authorities = getAuthoritiesFromClaims(claims);
+
+  String username = claims.getSubject();
+
+  User user = userRepository.findByUsername(username)
+      .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다."));
+
+  CustomUserDetails customUserDetails = new CustomUserDetails(UserResponse.toDto(user), authorities);
+  return new UsernamePasswordAuthenticationToken(customUserDetails, token, authorities);
+}
+
+/**
+* 내부 헬퍼 메서드: 클레임 파싱
+*/
+private Claims parseClaims(String token) {
+  try {
+    return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token)
+        .getBody(); // 토큰 파싱하여 클레임 정보 반환
+  } catch (ExpiredJwtException e) {
+    return e.getClaims(); // 만료된 토큰의 경우 클레임 정보 반환
+  }
+}
+private List<GrantedAuthority> getAuthoritiesFromClaims(Claims claims) {
+  return Arrays.stream(claims.get("auth").toString().split(","))
+      .map(SimpleGrantedAuthority::new)
+      .collect(Collectors.toList());
+}
+```
+
+**[내부 로직 설명]**
+1. **`getAuthentication`**: 이 메서드는 주어진 **JWT** 토큰을 사용하여 인증 정보를 생성하는 메서드입니다.
+    ```java
+    public Authentication getAuthentication(String token) {
+      // JWT 토큰을 파싱하여 Claim 정보를 추출 합니다.
+      Claims claims = parseClaims(token);
+      // 클레임에서 권한 정보(AUTHORITY_KEY)를 추출하여, 권한 정보가 없으면 예외를 발생시킵니다.
+      if (claims.get(AUTHORITIES_KEY) == null) {
+        throw new IllegalArgumentException("권한 정보가 없는 토큰입니다.");
+      }
+      // 클레임에서 권한 정보를 받아와 GrantedAuthority 객체로 변환합니다.
+      List<GrantedAuthority> authorities = getAuthoritiesFromClaims(claims);
+      // 토큰에서 사용자의 이름(주로 username)을 추출합니다.
+      String username = claims.getSubject();
+      // 추출한 사용자 이름을 사용하여 데이터베이스에서 사용자를 조회합니다. 사용자가 존재하지 않으면 예외가 발생합니다.
+      User user = userRepository.findByUsername(username)
+          .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다."));
+      // 사용자 정보를 UserResponse.toDto(user)를 사용하여 DTO로 변환하고, 권한 정보를 함께 CustomUserDetails 객체로 반환합니다.
+      CustomUserDetails customUserDetails = new CustomUserDetails(UserResponse.toDto(user), authorities);
+      // CustomUserDetails 객체와 토큰, 권한 정보를 사용하여 Authentication 객체인 UsernamePasswordAuthenticationToken을 생성합니다.
+      return new UsernamePasswordAuthenticationToken(customUserDetails, token, authorities);
+    }
+    ```
+2. **`parseClaims`**: 이 메서드는 JWT 토큰을 파싱하여 **클레임 정보**를 추출하는 역할을 합니다.
+    ```java
+    private Claims parseClaims(String token) {
+      try {
+        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token)
+            .getBody(); // 토큰 파싱하여 클레임 정보 반환
+      } catch (ExpiredJwtException e) {
+        return e.getClaims(); // 만료된 토큰의 경우 클레임 정보 반환
+      }
+    }
+    ```
+3. **`getAuthoritiesFromClaims`**: 이 메서드는 JWT 토큰에서 추출한 클레임으로부터 **권한 정보**를 GrantedAuthority 객체로 변환합니다.
+    ```java
+    private List<GrantedAuthority> getAuthoritiesFromClaims(Claims claims) {
+      return Arrays.stream(claims.get("auth").toString().split(","))
+          .map(SimpleGrantedAuthority::new)
+          .collect(Collectors.toList());
+    }
+    ```
+#### CustomUserDetails
+```java
+@Getter
+@RequiredArgsConstructor
+public class CustomUserDetails implements UserDetails {
+
+  private final UserResponse userResponse;
+  private final List<GrantedAuthority> authorities;
+
+
+  @Override
+  public Collection<? extends GrantedAuthority> getAuthorities() {
+    return List.of(new SimpleGrantedAuthority(userResponse.getRole().name()));
+  }
+
+  @Override
+  public String getPassword() {
+    return userResponse.getPassword();
+  }
+
+  public Long getUserId(){
+    return userResponse.getId();
+  }
+
+  @Override
+  public String getUsername() {
+    return userResponse.getUsername();
+  }
+
+  @Override
+  public boolean isAccountNonExpired() {
+    return true;
+  }
+
+  @Override
+  public boolean isAccountNonLocked() {
+    return true;
+  }
+
+  @Override
+  public boolean isCredentialsNonExpired() {
+    return true;
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return true;
+  }
+}
+```
+**[주요 메서드 설명]**
+1. **`getAuthorities()`**: 사용자의 권한 정보를 반환합니다. `userResponse.getRole()`에서 사용자의 **역할(Role)** 을 가져와서 **`SimpleGrantedAuthority`** 객체로 변환하여 반환합니다.
+2. **`getPassword()`**: 사용자의 비밀번호를 반환합니다. `userResponse.getPassword()`를 호출하여 저장된 비밀번호를 반환 합니다.
+3. **`getUserId()`**: 사용자의 아이디(고유 번호)를 반환합니다. `userResponse.getId()`를 호출하여 사용자의 아이디(고유 번호)를 반환 합니다.
+4. **`getUsername()`**: 사용자의 username(아이디 - `UserId`랑은 다른거임)을 반환합니다. `userResponse.getUsername()`를 호출하여 사용자의 `username`을 반환 합니다.
+5. **`isAccountNonExpired()`**: 이 메서드는 계정이 만료되었는지 여부를 확인하는 메서드입니다.
+6. **`isAccountNonLocked()`**: 이 메서드는 계정이 잠겨 있는지 여부를 확인하는 메서드입니다.
+7. **`isCredentialsNonExpired()`**: 이 메서드는 사용자의 자격 증명(비밀번호)이 만료되었는지 여부를 확인하는 메서드입니다. 
+8. **`isEnabled()`**: 이 메서드는 사용자가 활성화되어 있는지 여부를 확인하는 메서드입니다.
+
+#### CustomUserDetailsService
+```java
+@Service
+@RequiredArgsConstructor
+public class CustomUserDetailsService implements UserDetailsService {
+
+  private final UserRepository userRepository;
+    
+  @Override 
+  public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    User user = userRepository.findByUsername(username)
+        .orElseThrow(() -> new UsernameNotFoundException(
+          "User not found with username: " + username));
+    List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(user.getRole().getValue()));
+    UserResponse userResponse = UserResponse.toDto(user);
+    return new CustomUserDetails(userResponse, authorities);
+  }
+}
+```
+**[내부 메서드 설명]**
+1. **`loadUserByUsername(String username)`**:
+   - UserDetailsService 인터페이스의 핵심 메서드로, 주어진 사용자 이름(username)을 기반으로 사용자 정보를 로드합니다.
+   - userRepository.findByUsername(username)를 통해 데이터베이스에서 사용자 이름에 해당하는 사용자를 찾습니다.
