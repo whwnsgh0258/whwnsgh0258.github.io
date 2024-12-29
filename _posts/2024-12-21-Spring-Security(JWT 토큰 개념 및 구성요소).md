@@ -3,14 +3,14 @@ title: JWT 토큰 개념 및 구성요소
 description: JWT 토큰 개념 및 구성요소
 author: JoJunHo
 date: 2024-12-21 11:33:00 +0800
-categories: [ java, Spring, SpringSecurity, JWT ]
-tags: [ java, Spring, SpringBoot,SpringSecurity, JWT ]
+categories: [ java, SpringBoot, SpringSecurity, JWT ]
+tags: [ java, SpringBoot, SpringSecurity, JWT ]
 pin: false
 ---
 
 > ### SpringSecurity
 > [SpringSecurity - 1](https://whwnsgh0258.github.io/posts/Spring-Security/)  
-> [SpringSecurity - 구조 및 처리 흐름](https://whwnsgh0258.github.io/posts/Spring-Security(%EA%B5%AC%EC%A1%B0%EC%99%80-%EC%B2%98%EB%A6%AC-%ED%9D%90%EB%A6%84)/)
+> [SpringSecurity - 구조 및 처리 흐름](https://whwnsgh0258.github.io/posts/Spring-Security(%EA%B5%AC%EC%A1%B0%EC%99%80-%EC%B2%98%EB%A6%AC-%ED%9D%90%EB%A6%84)/)  
 > [SpringSecurity - FormLogin](https://whwnsgh0258.github.io/posts/Spring-Security(FormLogin-%EC%9D%B8%EC%A6%9D-%EB%B0%8F-%EA%B6%8C%ED%95%9C-%EB%B6%80%EC%97%AC)/)
 
 안녕하세요. 백엔드 개발자가 되기위해 공부하고있는 조준호입니다.  

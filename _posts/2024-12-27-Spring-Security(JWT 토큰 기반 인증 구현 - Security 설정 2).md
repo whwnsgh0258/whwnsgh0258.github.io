@@ -1,10 +1,10 @@
 ---
 title: JWT 토큰 기반 인증 구현 - 2
-description: 동영상 재생기
+description: Security 설정 - JwtAuthenticationFilter, CustomUserDetails, CustomUserDetailsService
 author: JoJunHo
 date: 2024-12-27 11:33:00 +0800
-categories: [ Coding Test, Programmers ]
-tags: [ Coding Test, Programmers ]
+categories: [ java, SpringBoot, SpringSecurity, JWT ]
+tags: [ java, SpringBoot, SpringSecurity, JWT ]
 lastmod: 2024-12-30
 sitemap:
   changefreq: daily
@@ -88,6 +88,15 @@ public JwtTokenResponse generateTokens(Authentication authentication) {
       .refreshToken(refreshToken)
       .build();
 }
+public JwtTokenResponse generateNewAccessToken(Authentication authentication) {
+  String authorities = getAuthorities(authentication);
+  String newAccessToken = createToken(authentication.getName(), authorities,expirationTime);
+  setAccessTokenInCookie(newAccessToken);
+
+  return JwtTokenResponse.builder()
+    .accessToken(newAccessToken)
+    .build();
+}
 private String createToken(String subject, String authorities, Long expirationTime) {
   long now = System.currentTimeMillis();
   return Jwts.builder()
@@ -147,6 +156,18 @@ private void setRefreshTokenInCookie(String refreshToken) {
           .build();
       }
     ```
+2. **`generateNewAccessToken`**: 새로운 accessToken을 발급하는 메서드
+   ```java
+    public JwtTokenResponse generateNewAccessToken(Authentication authentication) {
+      String authorities = getAuthorities(authentication);
+      String newAccessToken = createToken(authentication.getName(), authorities,expirationTime);
+      setAccessTokenInCookie(newAccessToken);
+
+      return JwtTokenResponse.builder()
+          .accessToken(newAccessToken)
+          .build();
+    }
+   ```
 2. **`createToken`**: 외부에서 접근하지 못하도록 JWT 토큰을 생성하는 세부 로직을 **`private`** 으로 구현
     ```java
     private String createToken(String subject, String authorities, Long expirationTime) {

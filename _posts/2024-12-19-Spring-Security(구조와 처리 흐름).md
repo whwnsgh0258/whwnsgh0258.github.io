@@ -3,7 +3,7 @@ title: SpringSecurity(구조와 처리 흐름)
 description: SpringSecurity(구조와 처리 흐름)
 author: JoJunHo
 date: 2024-12-19 11:33:00 +0800
-categories: [ java, Spring, SpringSecurity ]
+categories: [ java, SpringBoot, SpringSecurity ]
 tags: [ java, cs, Spring, SpringBoot,SpringSecurity ]
 pin: false
 ---

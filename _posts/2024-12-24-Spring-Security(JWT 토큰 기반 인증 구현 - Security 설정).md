@@ -1,10 +1,10 @@
 ---
-title: JWT 토큰 기반 인증 구현 - 1 (초기 설정, 엔티티 생성, 시큐리티 설정 - config, filter)
-description: JWT 토큰 기반 인증 구현 (초기 설정, 엔티티 생성, 시큐리티 설정 - config, filter)
+title: JWT 토큰 기반 인증 구현 - 1
+description: 초기 설정, 엔티티 생성, 시큐리티 설정 - config, filter
 author: JoJunHo
 date: 2024-12-24 11:33:00 +0800
-categories: [ java, Spring, SpringSecurity, JWT ]
-tags: [ java, Spring, SpringBoot,SpringSecurity, JWT ]
+categories: [ java, SpringBoot, SpringSecurity, JWT ]
+tags: [ java, SpringBoot, SpringSecurity, JWT ]
 pin: false
 ---
 

@@ -3,7 +3,7 @@ title: SpringSecurity(FormLogin - 인증 및 권한 부여)
 description: SpringSecurity(FormLogin -인증 및 권한 부여)
 author: JoJunHo
 date: 2024-12-20 11:33:00 +0800
-categories: [ java, Spring, SpringSecurity, FormLogin ]
+categories: [ java, SpringBoot, SpringSecurity, FormLogin ]
 tags: [ java, Spring, SpringBoot,SpringSecurity, FormLogin ]
 pin: false
 ---
