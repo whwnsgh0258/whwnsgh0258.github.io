@@ -232,4 +232,3 @@ jekyll-archives:
 
 plugins:
   - jekyll-sitemap
-  - jekyll-robots.txt
