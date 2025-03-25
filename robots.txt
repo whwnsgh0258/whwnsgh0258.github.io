@@ -1,6 +1,6 @@
-User-agent: Googlebot
+User-agent: *
 
 User-agent: *
 Allow: /
 
-Sitemap: https://www.example.com/sitemap.xml
+Sitemap: https://whwnsgh0258.github.io/sitemap.xml
